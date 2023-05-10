@@ -85,3 +85,13 @@ class ssdu_masks():
         trn_mask = input_mask - loss_mask
 
         return trn_mask, loss_mask
+    
+    def make_mask(self, input_data, input_mask, mask_type):
+
+        if mask_type == 'Gaussian':
+            trn_mask, loss_mask = self.Gaussian_selection(input_data, input_mask)
+
+        elif mask_type == 'Uniform':
+            trn_mask, loss_mask = self.uniform_selection(input_data, input_mask)
+
+        return trn_mask, loss_mask
