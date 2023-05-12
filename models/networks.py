@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import sys
 
 
 def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False):
@@ -47,6 +48,8 @@ def ResNet(input_data, nb_res_blocks):
     intermediate_outputs = {}
 
     with tf.variable_scope('FirstLayer'):
+
+        print('Shape of First Layer Input data: ' + str(input_data.shape))
         intermediate_outputs['layer0'] = conv_layer(input_data, conv_filters['w1'], is_relu=False, is_scaling=False)
 
     for i in np.arange(1, nb_res_blocks + 1):

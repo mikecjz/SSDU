@@ -37,7 +37,7 @@ config.allow_soft_placement = True
 
 # .......................Load the Data..........................................
 print('\n Loading ', args.data_opt, ' data, acc rate : ', args.acc_rate, ', mask type :', args.mask_type)
-mask_dir = '~/zfan0804_712/Zhehao/Accelerated-VWI-Mask/mask_2x3_grappa.mat'
+mask_dir = '/home/jc_350/zfan0804_712/Zhehao/Accelerated-VWI-Mask/mask_2x3_grappa.mat'
 
 # %% kspace and sensitivity maps are assumed to be in .h5 format and mask is assumed to be in .mat
 # Users can change these formats based on their dataset
@@ -56,18 +56,20 @@ original_mask = sio.loadmat(mask_dir)['mask']
 # loss_maskP = tf.placeholder(tf.complex64, shape=(None, None, None), name='loss_mask')
 # nw_inputP = tf.placeholder(tf.float32, shape=(None, args.nrow_GLOB, args.ncol_GLOB, 2), name='nw_input')
 
-
+print('Getting list of trainning files')
 enumerate_trn_list = get_enum_list('dcm_tags_09_19_22.csv',tag='Train')
+print('Getting list of trainning files done')
+ssdu_masker = ssdu_masks.ssdu_masks()
 total_batch = np.shape(enumerate_trn_list)[0]
-dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_trn_list, shuffle=True),
+dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_trn_list, original_mask, ssdu_masker,shuffle=True),
                                          output_types=((tf.float32, tf.float32, tf.complex64,
-                                                           tf.float32, tf.float32))
+                                                           tf.complex64, tf.complex64))
                                         )
 dataset = dataset.batch(args.batchSize)
 dataset = dataset.prefetch(args.batchSize)
 iterator = dataset.make_initializable_iterator()
 ref_kspace_tensor, nw_input_tensor, sens_maps_tensor, trn_mask_tensor, loss_mask_tensor = iterator.get_next('getNext')
-
+print('ref_kspace_tensor shape is' + str(ref_kspace_tensor.shape))
 # %% make training model
 nw_output_img, nw_output_kspace, *_ = UnrollNet.UnrolledNet(nw_input_tensor, sens_maps_tensor, trn_mask_tensor, loss_mask_tensor).model
 scalar = tf.constant(0.5, dtype=tf.float32)
@@ -83,17 +85,20 @@ sess_trn_filename = os.path.join(directory, 'model')
 totalLoss = []
 avg_cost = 0
 with tf.Session(config=config) as sess:
+    print('Running Session Global Variable Initilizer')
     sess.run(tf.global_variables_initializer())
     print('SSDU Parameters: Epochs: ', args.epochs, ', Batch Size:', args.batchSize,
           ', Number of trainable parameters: ', sess.run(all_trainable_vars))
 
     print('Training...')
     for ep in range(1, args.epochs + 1):
+        print('Running Session Itorator Initilizer')
         sess.run(iterator.initializer)
         avg_cost = 0
         tic = time.time()
         try:
             for jj in range(total_batch):
+                print('Running Graph Operations')
                 tmp, _, _ = sess.run([loss, update_ops, optimizer])
                 avg_cost += tmp / total_batch
             toc = time.time() - tic

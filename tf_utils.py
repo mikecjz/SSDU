@@ -5,7 +5,7 @@ import parser_ops
 import UnrollNet
 
 parser = parser_ops.get_parser()
-args = parser.parse_args()
+args = parser.parse_args("")
 
 
 def test_graph(directory):

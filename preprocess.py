@@ -40,12 +40,14 @@ def step_gen(data_list,original_mask,ssdu_masker,shuffle=True):
     if shuffle:
         random.shuffle(data_list)
     for mat_path, count in data_list:
-        print('\nCase Number =',count)
+        print('\nCase Nummmber =',count)
         
         # MC_kspace should already be normalized between [0-1]
         MC_kspace, SE = loadmat_cart(mat_path)
         _, _, nCoil = np.shape(MC_kspace)
 
+        
+         
         trn_mask, loss_mask = ssdu_masker.make_mask(MC_kspace, original_mask, mask_type='Gaussian')
 
         sub_kspace = MC_kspace * np.tile(trn_mask[..., np.newaxis], (1, 1, nCoil))
@@ -54,16 +56,30 @@ def step_gen(data_list,original_mask,ssdu_masker,shuffle=True):
         nw_input = utils.sense1(sub_kspace, SE)
 
         # Prepare the data for the training
-        SE = np.transpose(SE, (0, 3, 1, 2))
-        ref_kspace = utils.complex2real(np.transpose(ref_kspace, (0, 3, 1, 2)))
+        SE = np.transpose(SE, (2, 0, 1))
+        ref_kspace = utils.complex2real(np.transpose(ref_kspace, (2, 0, 1)))
         nw_input = utils.complex2real(nw_input)
 
+        #Expland first dimension to 1
+        ref_kspace = np.expand_dims(ref_kspace, axis = 0)
+        nw_input = np.expand_dims(nw_input, axis = 0)
+        SE = np.expand_dims(SE, axis = 0)
+        trn_mask = np.expand_dims(trn_mask, axis = 0)
+        loss_mask = np.expand_dims(loss_mask, axis = 0)
+        
+        print('ref_kspace shape' + str(ref_kspace.shape))
+        print('nw_input shape' + str(nw_input.shape))
+        print('SE shape' + str(SE.shape))
+        print('trn_mask shape' + str(trn_mask.shape))
+        print('loss_mask shape' + str(loss_mask.shape)) 
+
+
         # Convert to tf arrays
-        ref_kspace = tf.convert_to_tensor(ref_kspace)
-        nw_input = tf.convert_to_tensor(nw_input)
-        SE = tf.convert_to_tensor(SE)
-        trn_mask = tf.convert_to_tensor(trn_mask)
-        loss_mask = tf.convert_to_tensor(loss_mask)
+        # ref_kspace = tf.convert_to_tensor(ref_kspace)
+        # nw_input = tf.convert_to_tensor(nw_input)
+        # SE = tf.convert_to_tensor(SE)
+        # trn_mask = tf.convert_to_tensor(trn_mask, dtype=tf.complex64)
+        # loss_mask = tf.convert_to_tensor(loss_mask, dtype=tf.complex64)
 
         yield ref_kspace, nw_input, SE, trn_mask, loss_mask
         
