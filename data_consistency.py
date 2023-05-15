@@ -1,6 +1,10 @@
+from typing import Any
 import tensorflow as tf
+
+
 import tf_utils
 import parser_ops
+import sys
 
 parser = parser_ops.get_parser()
 args = parser.parse_args()
@@ -19,7 +23,7 @@ class data_consistency():
             self.sens_maps = sens_maps
             self.mask = mask
             self.shape_list = tf.shape(mask)
-            self.scalar = tf.complex(tf.sqrt(tf.to_float(self.shape_list[0] * self.shape_list[1])), 0.)
+            self.scalar = tf.complex(tf.sqrt(tf.compat.v1.to_float(self.shape_list[0] * self.shape_list[1])), 0.)
 
     def EhE_Op(self, img, mu):
         """
@@ -27,10 +31,10 @@ class data_consistency():
         """
         with tf.name_scope('EhE'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = tf_utils.tf_fftshift(tf.compat.v1.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
             masked_kspace = kspace * self.mask
-            image_space_coil_imgs = tf_utils.tf_ifftshift(tf.ifft2d(tf_utils.tf_fftshift(masked_kspace))) * self.scalar
-            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.conj(self.sens_maps), axis=0)
+            image_space_coil_imgs = tf_utils.tf_ifftshift(tf.compat.v1.ifft2d(tf_utils.tf_fftshift(masked_kspace))) * self.scalar
+            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=0)
 
             ispace = image_space_comb + mu * img
 
@@ -44,7 +48,7 @@ class data_consistency():
 
         with tf.name_scope('SSDU_kspace'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = tf_utils.tf_fftshift(tf.compat.v1.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
             masked_kspace = kspace * self.mask
 
         return masked_kspace
@@ -56,7 +60,7 @@ class data_consistency():
 
         with tf.name_scope('Supervised_kspace'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = tf_utils.tf_fftshift(tf.compat.v1.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
 
         return kspace
 
@@ -89,10 +93,10 @@ def conj_grad(input_elems, mu_param):
     def body(i, rsold, x, r, p, mu):
         with tf.name_scope('CGIters'):
             Ap = Encoder.EhE_Op(p, mu)
-            alpha = tf.complex(rsold / tf.to_float(tf.reduce_sum(tf.conj(p) * Ap)), 0.)
+            alpha = tf.complex(rsold / tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(p) * Ap)), 0.)
             x = x + alpha * p
             r = r - alpha * Ap
-            rsnew = tf.to_float(tf.reduce_sum(tf.conj(r) * r))
+            rsnew = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r))
             beta = rsnew / rsold
             beta = tf.complex(beta, 0.)
             p = r + beta * p
@@ -101,11 +105,19 @@ def conj_grad(input_elems, mu_param):
 
     x = tf.zeros_like(rhs)
     i, r, p = 0, rhs, rhs
-    rsold = tf.to_float(tf.reduce_sum(tf.conj(r) * r), )
+    rsold = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r), )
     loop_vars = i, rsold, x, r, p, mu_param
-    cg_out = tf.while_loop(cond, body, loop_vars, name='CGloop', parallel_iterations=1)[2]
 
-    return tf_utils.tf_complex2real(cg_out)
+    class LoopLayer:
+        def __call__(self, input_elems):
+            
+            return tf.while_loop(cond, body, input_elems, name='CGloop', parallel_iterations=1)[2]
+
+    cg_out = LoopLayer()(loop_vars)
+    
+    cg_out_real = tf_utils.tf_complex2real(cg_out)
+
+    return cg_out_real
 
 
 def dc_block(rhs, sens_maps, mask, mu):
@@ -113,12 +125,15 @@ def dc_block(rhs, sens_maps, mask, mu):
     DC block employs conjugate gradient for data consistency,
     """
 
-    def cg_map_func(input_elems):
-        cg_output = conj_grad(input_elems, mu)
+    # class MapLayer:
+    #     def __call__(self, input_elems):
 
-        return cg_output
+    #         return tf.map_fn(conj_grad, input_elems, fn_output_signature=tf.float32, name='mapCG')
 
-    dc_block_output = tf.map_fn(cg_map_func, (rhs, sens_maps, mask), dtype=tf.float32, name='mapCG')
+    # dc_block_output = MapLayer()((rhs, sens_maps, mask))
+    #dc_block_output = conj_grad((rhs, sens_maps, mask), mu)
+    dc_block_output  = tf.keras.layers.Lambda(lambda x: conj_grad(x, mu))((rhs, sens_maps, mask))
+    #dc_block_output  = conj_grad((rhs, sens_maps, mask), mu)
 
     return dc_block_output
 
@@ -137,7 +152,8 @@ def SSDU_kspace_transform(nw_output, sens_maps, mask):
 
         return nw_output_kspace
 
-    masked_kspace = tf.map_fn(ssdu_map_fn, (nw_output, sens_maps, mask), dtype=tf.complex64, name='ssdumapFn')
+    #masked_kspace = tf.map_fn(ssdu_map_fn, (nw_output, sens_maps, mask), dtype=tf.complex64, name='ssdumapFn')
+    masked_kspace  = tf.keras.layers.Lambda(lambda x: ssdu_map_fn(x))((nw_output, sens_maps, mask))
 
     return tf_utils.tf_complex2real(masked_kspace)
 
@@ -159,6 +175,5 @@ def Supervised_kspace_transform(nw_output, sens_maps, mask):
     kspace = tf.map_fn(supervised_map_fn, (nw_output, sens_maps, mask), dtype=tf.complex64, name='supervisedmapFn')
 
     return tf_utils.tf_complex2real(kspace)
-
 
 

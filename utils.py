@@ -1,5 +1,6 @@
 import numpy as np
-from skimage.measure import compare_ssim
+import tensorflow as tf
+from skimage.metrics import structural_similarity as compare_ssim
 
 
 def get_train_directory(args):
@@ -85,8 +86,7 @@ def getSSIM(space_ref, space_rec):
     data_range = np.amax(np.abs(space_ref)) - np.amin(np.abs(space_ref))
 
     return compare_ssim(space_rec, space_ref, data_range=data_range,
-                        gaussian_weights=True,
-                        use_sample_covariance=False)
+                        gaussian_weights=True)
 
 
 def getPSNR(ref, recon):
@@ -268,3 +268,24 @@ def real2complex(input_data):
     """
 
     return input_data[..., 0] + 1j * input_data[..., 1]
+
+
+class MAE_MSE_LOSS(tf.keras.losses.Loss):
+  def __init__(self,lam):
+    super().__init__()
+    self.lam = lam
+  def call(self, y_true, y_pred):
+    nw_output_kspace = y_pred[0]
+    ref_kspace_tensor = y_true[0]
+    scalar = self.lam
+
+    print(ref_kspace_tensor)
+    print(y_true.shape)
+    print(y_pred.shape)
+    loss = tf.multiply(scalar, tf.norm(ref_kspace_tensor - nw_output_kspace) / tf.norm(ref_kspace_tensor)) + \
+       tf.multiply(scalar, tf.norm(ref_kspace_tensor - nw_output_kspace, ord=1) / tf.norm(ref_kspace_tensor, ord=1))
+    print('Loss success')
+    return loss
+  
+def dummy_loss(y_true, y_pred):
+    return 0.0

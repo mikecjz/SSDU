@@ -61,11 +61,11 @@ def step_gen(data_list,original_mask,ssdu_masker,shuffle=True):
         nw_input = utils.complex2real(nw_input)
 
         #Expland first dimension to 1
-        ref_kspace = np.expand_dims(ref_kspace, axis = 0)
-        nw_input = np.expand_dims(nw_input, axis = 0)
-        SE = np.expand_dims(SE, axis = 0)
-        trn_mask = np.expand_dims(trn_mask, axis = 0)
-        loss_mask = np.expand_dims(loss_mask, axis = 0)
+        ref_kspace = tf.expand_dims(ref_kspace, axis = 0)
+        nw_input = tf.expand_dims(nw_input, axis = 0)
+        SE = tf.expand_dims(SE, axis = 0)
+        trn_mask = tf.expand_dims(trn_mask, axis = 0)
+        loss_mask = tf.expand_dims(loss_mask, axis = 0)
         
         print('ref_kspace shape' + str(ref_kspace.shape))
         print('nw_input shape' + str(nw_input.shape))
@@ -74,14 +74,9 @@ def step_gen(data_list,original_mask,ssdu_masker,shuffle=True):
         print('loss_mask shape' + str(loss_mask.shape)) 
 
 
-        # Convert to tf arrays
-        # ref_kspace = tf.convert_to_tensor(ref_kspace)
-        # nw_input = tf.convert_to_tensor(nw_input)
-        # SE = tf.convert_to_tensor(SE)
-        # trn_mask = tf.convert_to_tensor(trn_mask, dtype=tf.complex64)
-        # loss_mask = tf.convert_to_tensor(loss_mask, dtype=tf.complex64)
+        multiple_inputs = (nw_input, SE, trn_mask, loss_mask)
 
-        yield ref_kspace, nw_input, SE, trn_mask, loss_mask
+        yield multiple_inputs, ref_kspace
         
 
 

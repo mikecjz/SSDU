@@ -4,6 +4,9 @@ import tf_utils
 import models.networks as networks
 import parser_ops
 
+from tensorflow.keras.models import Model
+from tensorflow.keras import Input
+
 parser = parser_ops.get_parser()
 args = parser.parse_args("")
 
@@ -35,11 +38,11 @@ class UnrolledNet():
 
     """
 
-    def __init__(self, input_x, sens_maps, trn_mask, loss_mask):
-        self.input_x = input_x
-        self.sens_maps = sens_maps
-        self.trn_mask = trn_mask
-        self.loss_mask = loss_mask
+    def __init__(self, input_size):
+        self.input_x = Input(input_size+(2,), dtype=tf.float32, name='nw_input')
+        self.sens_maps = Input((None,) + input_size, dtype=tf.complex64, name='sens_maps')
+        self.trn_mask = Input(input_size, dtype=tf.complex64, name='train_mask')
+        self.loss_mask = Input(input_size, dtype=tf.complex64, name='loss_mask')
         self.model = self.Unrolled_SSDU()
 
     def Unrolled_SSDU(self):
@@ -50,7 +53,7 @@ class UnrolledNet():
         x0 = ssdu_dc.dc_block(self.input_x, self.sens_maps, self.trn_mask, mu_init)
 
         with tf.name_scope('SSDUModel'):
-            with tf.variable_scope('Weights', reuse=tf.AUTO_REUSE):
+            with tf.compat.v1.variable_scope('Weights', reuse=tf.compat.v1.AUTO_REUSE):
                 for i in range(args.nb_unroll_blocks):
                     x = networks.ResNet(x, args.nb_res_blocks)
                     denoiser_output = x
@@ -67,4 +70,9 @@ class UnrolledNet():
 
             nw_kspace_output = ssdu_dc.SSDU_kspace_transform(x, self.sens_maps, self.loss_mask)
 
-        return x, nw_kspace_output, x0, all_intermediate_results, mu
+        # model = Model(inputs=[self.input_x, self.sens_maps, self.trn_mask, self.loss_mask], 
+        #               outputs={'image_output': x, 'kspace_output': nw_kspace_output, 'first_sense_image': x0, 'intermediate_results': all_intermediate_results}) 
+        model = Model(inputs=[self.input_x, self.sens_maps, self.trn_mask, self.loss_mask], 
+                      outputs=nw_kspace_output)    
+
+        return model
