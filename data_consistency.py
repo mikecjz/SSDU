@@ -1,6 +1,6 @@
 from typing import Any
 import tensorflow as tf
-
+from tensorflow.keras.layers import Conv2D, Lambda, Add, Activation
 
 import tf_utils
 import parser_ops
@@ -65,7 +65,7 @@ class data_consistency():
         return kspace
 
 
-def conj_grad(input_elems, mu_param):
+def conj_grad(input_elems):
     """
     Parameters
     ----------
@@ -83,16 +83,41 @@ def conj_grad(input_elems, mu_param):
 
     """
 
-    rhs, sens_maps, mask = input_elems
+    rhs, sens_maps, mask, mu_param = input_elems
     mu_param = tf.complex(mu_param, 0.)
     rhs = tf_utils.tf_real2complex(rhs)
 
     Encoder = data_consistency(sens_maps, mask)
     cond = lambda i, *_: tf.less(i, args.CG_Iter)
 
-    def body(i, rsold, x, r, p, mu):
-        with tf.name_scope('CGIters'):
-            Ap = Encoder.EhE_Op(p, mu)
+    # def body(i, rsold, x, r, p, mu):
+    #     with tf.name_scope('CGIters'):
+    #         Ap = Encoder.EhE_Op(p, mu)
+    #         alpha = tf.complex(rsold / tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(p) * Ap)), 0.)
+    #         x = x + alpha * p
+    #         r = r - alpha * Ap
+    #         rsnew = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r))
+    #         beta = rsnew / rsold
+    #         beta = tf.complex(beta, 0.)
+    #         p = r + beta * p
+
+    #     return i + 1, rsnew, x, r, p, mu
+
+    x = tf.zeros_like(rhs)
+    # i, r, p = 0, rhs, rhs
+    r, p = rhs, rhs
+    rsold = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r), )
+    # loop_vars = i, rsold, x, r, p, mu_param
+
+    # class LoopLayer:
+    #     def __call__(self, input_elems):
+            
+    #         return tf.while_loop(cond, body, input_elems, name='CGloop', parallel_iterations=1)[2]
+
+    # cg_out = LoopLayer()(loop_vars)
+    with tf.name_scope('CGIters'):
+        for i in range(args.CG_Iter):
+            Ap = Encoder.EhE_Op(p, mu_param)
             alpha = tf.complex(rsold / tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(p) * Ap)), 0.)
             x = x + alpha * p
             r = r - alpha * Ap
@@ -101,39 +126,27 @@ def conj_grad(input_elems, mu_param):
             beta = tf.complex(beta, 0.)
             p = r + beta * p
 
-        return i + 1, rsnew, x, r, p, mu
-
-    x = tf.zeros_like(rhs)
-    i, r, p = 0, rhs, rhs
-    rsold = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r), )
-    loop_vars = i, rsold, x, r, p, mu_param
-
-    class LoopLayer:
-        def __call__(self, input_elems):
-            
-            return tf.while_loop(cond, body, input_elems, name='CGloop', parallel_iterations=1)[2]
-
-    cg_out = LoopLayer()(loop_vars)
     
-    cg_out_real = tf_utils.tf_complex2real(cg_out)
+    cg_out_real = tf_utils.tf_complex2real(x)
 
     return cg_out_real
 
-
+class dc_layer(tf.keras.layers.Layer):
+    def __init__(self, sens_maps, mask, mu):
+        super().__init__()
+        self.sens_maps = sens_maps
+        self.mask = mask
+        self.mu = mu
+    def call(self, input):
+        cg_out_real = conj_grad([input, self.sens_maps, self.mask, self.mu])
+        print(cg_out_real)
+        return cg_out_real
+    
 def dc_block(rhs, sens_maps, mask, mu):
     """
     DC block employs conjugate gradient for data consistency,
     """
-
-    # class MapLayer:
-    #     def __call__(self, input_elems):
-
-    #         return tf.map_fn(conj_grad, input_elems, fn_output_signature=tf.float32, name='mapCG')
-
-    # dc_block_output = MapLayer()((rhs, sens_maps, mask))
-    #dc_block_output = conj_grad((rhs, sens_maps, mask), mu)
-    dc_block_output  = tf.keras.layers.Lambda(lambda x: conj_grad(x, mu))((rhs, sens_maps, mask))
-    #dc_block_output  = conj_grad((rhs, sens_maps, mask), mu)
+    dc_block_output  = Lambda(conj_grad)([rhs, sens_maps, mask, mu])
 
     return dc_block_output
 

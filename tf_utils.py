@@ -53,7 +53,6 @@ def tf_complex2real(input_data):
     outputs concatenated real and imaginary parts as nrow x ncol x 2
 
     """
-
     return tf.stack([tf.math.real(input_data), tf.math.imag(input_data)], axis=-1)
 
 

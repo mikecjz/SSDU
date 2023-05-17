@@ -46,32 +46,30 @@ class UnrolledNet():
         self.model = self.Unrolled_SSDU()
 
     def Unrolled_SSDU(self):
-        x, denoiser_output, dc_output = self.input_x, self.input_x, self.input_x
+        x = self.input_x
         all_intermediate_results = [[0 for _ in range(2)] for _ in range(args.nb_unroll_blocks)]
 
-        mu_init = tf.constant(0., dtype=tf.float32)
-        x0 = ssdu_dc.dc_block(self.input_x, self.sens_maps, self.trn_mask, mu_init)
+        mu = tf.Variable(0., dtype=tf.float32)
+        print(x)
+        x0 = ssdu_dc.dc_layer(self.sens_maps, self.trn_mask, mu)(x)
+    
+        # with tf.name_scope('SSDUModel'):
+        for i in range(args.nb_unroll_blocks):
+            x = networks.ResNet(x, args.nb_res_blocks)
+            denoiser_output = x
 
-        with tf.name_scope('SSDUModel'):
-            with tf.compat.v1.variable_scope('Weights', reuse=tf.compat.v1.AUTO_REUSE):
-                for i in range(args.nb_unroll_blocks):
-                    x = networks.ResNet(x, args.nb_res_blocks)
-                    denoiser_output = x
+            rhs = self.input_x + mu * x
 
-                    mu = networks.mu_param()
-                    rhs = self.input_x + mu * x
+            x = ssdu_dc.dc_layer(self.sens_maps, self.trn_mask, mu)(x)
+            dc_output = x
+            # ...................................................................................................
+            all_intermediate_results[i][0] = tf_utils.tf_real2complex(tf.squeeze(denoiser_output))
+            all_intermediate_results[i][1] = tf_utils.tf_real2complex(tf.squeeze(dc_output))
 
-                    x = ssdu_dc.dc_block(rhs, self.sens_maps, self.trn_mask, mu)
-                    dc_output = x
-
-                    # ...................................................................................................
-                    all_intermediate_results[i][0] = tf_utils.tf_real2complex(tf.squeeze(denoiser_output))
-                    all_intermediate_results[i][1] = tf_utils.tf_real2complex(tf.squeeze(dc_output))
-
-            nw_kspace_output = ssdu_dc.SSDU_kspace_transform(x, self.sens_maps, self.loss_mask)
+        nw_kspace_output = ssdu_dc.SSDU_kspace_transform(x, self.sens_maps, self.loss_mask)
 
         # model = Model(inputs=[self.input_x, self.sens_maps, self.trn_mask, self.loss_mask], 
-        #               outputs={'image_output': x, 'kspace_output': nw_kspace_output, 'first_sense_image': x0, 'intermediate_results': all_intermediate_results}) 
+        #                outputs={'image_output': x, 'kspace_output': nw_kspace_output, 'first_sense_image': x0, 'intermediate_results': all_intermediate_results}) 
         model = Model(inputs=[self.input_x, self.sens_maps, self.trn_mask, self.loss_mask], 
                       outputs=nw_kspace_output)    
 

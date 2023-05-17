@@ -15,7 +15,7 @@ import UnrollNet
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 
 #..............................................................................
@@ -58,6 +58,10 @@ val_dataset = val_dataset.prefetch(buffer_size=tf.data.AUTOTUNE) #pre_fetch for 
 # %% make training model
 ssdu_net= UnrollNet.UnrolledNet((args.nrow_GLOB, args.ncol_GLOB))
 ssdu_model = ssdu_net.model
+
+for element in train_dataset.take(1):
+    output = ssdu_model(element[0], training = False)
+    print(output)
 
 ssdu_model_output_names = ssdu_model.output_names
 print(ssdu_model_output_names)

@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import sys
 
+from tensorflow.keras.layers import Conv2D, Lambda, Add, Activation
+
 
 def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False):
     """
@@ -14,15 +16,23 @@ def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False):
 
     """
 
-    W = tf.compat.v1.get_variable('W', shape=conv_filter, initializer=tf.random_normal_initializer(0, 0.05))
-    x = tf.nn.conv2d(input_data, W, strides=[1, 1, 1, 1], padding='SAME')
+    n_filters = conv_filter[3]
+    kernel = conv_filter[0:2]
 
+    #setup activation type
     if (is_relu):
-        x = tf.nn.relu(x)
+        activation_type = 'relu'
+    else:
+        activation_type = None
 
+    #perform convolution
+    x = Conv2D(n_filters, kernel, padding='same', activation=activation_type)(input_data)
+
+
+    #optional scaling
     if (is_scaling):
         scalar = tf.constant(0.1, dtype=tf.float32)
-        x = tf.multiply(scalar, x)
+        x = x * scalar
 
     return x
 
