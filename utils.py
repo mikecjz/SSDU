@@ -266,8 +266,9 @@ def real2complex(input_data):
     output : row x col
 
     """
-
-    return input_data[..., 0] + 1j * input_data[..., 1]
+    input_data_real = tf.complex(input_data[..., 0], input_data[..., 1])
+    # return input_data[..., 0] + 1j * input_data[..., 1]
+    return input_data_real
 
 
 class MAE_MSE_LOSS(tf.keras.losses.Loss):
@@ -275,17 +276,20 @@ class MAE_MSE_LOSS(tf.keras.losses.Loss):
     super().__init__()
     self.lam = lam
   def call(self, y_true, y_pred):
-    nw_output_kspace = y_pred[0]
-    ref_kspace_tensor = y_true[0]
+    nw_output_kspace = y_pred
+    ref_kspace_tensor = y_true
     scalar = self.lam
 
+    
+    # print(y_true)
+    print('ref_tensor :')
     print(ref_kspace_tensor)
-    print(y_true.shape)
-    print(y_pred.shape)
+    print('nw_output_kspace:')
+    print(nw_output_kspace)
     loss = tf.multiply(scalar, tf.norm(ref_kspace_tensor - nw_output_kspace) / tf.norm(ref_kspace_tensor)) + \
        tf.multiply(scalar, tf.norm(ref_kspace_tensor - nw_output_kspace, ord=1) / tf.norm(ref_kspace_tensor, ord=1))
     print('Loss success')
     return loss
   
 def dummy_loss(y_true, y_pred):
-    return 0.0
+    return tf.constant(0.0)

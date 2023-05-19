@@ -23,7 +23,7 @@ class data_consistency():
             self.sens_maps = sens_maps
             self.mask = mask
             self.shape_list = tf.shape(mask)
-            self.scalar = tf.complex(tf.sqrt(tf.compat.v1.to_float(self.shape_list[0] * self.shape_list[1])), 0.)
+            self.scalar = tf.complex(tf.sqrt(tf.cast(self.shape_list[0] * self.shape_list[1], dtype=tf.float32)), 0.)
 
     def EhE_Op(self, img, mu):
         """
@@ -31,10 +31,10 @@ class data_consistency():
         """
         with tf.name_scope('EhE'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.compat.v1.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = tf_utils.tf_fftshift(tf.signal.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
             masked_kspace = kspace * self.mask
-            image_space_coil_imgs = tf_utils.tf_ifftshift(tf.compat.v1.ifft2d(tf_utils.tf_fftshift(masked_kspace))) * self.scalar
-            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=0)
+            image_space_coil_imgs = tf_utils.tf_ifftshift(tf.signal.ifft2d(tf_utils.tf_fftshift(masked_kspace))) * self.scalar
+            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=-3)
 
             ispace = image_space_comb + mu * img
 
@@ -48,7 +48,7 @@ class data_consistency():
 
         with tf.name_scope('SSDU_kspace'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.compat.v1.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = tf_utils.tf_fftshift(tf.signal.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
             masked_kspace = kspace * self.mask
 
         return masked_kspace
@@ -60,7 +60,7 @@ class data_consistency():
 
         with tf.name_scope('Supervised_kspace'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.compat.v1.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = tf_utils.tf_fftshift(tf.signal.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
 
         return kspace
 
@@ -90,56 +90,62 @@ def conj_grad(input_elems):
     Encoder = data_consistency(sens_maps, mask)
     cond = lambda i, *_: tf.less(i, args.CG_Iter)
 
-    # def body(i, rsold, x, r, p, mu):
-    #     with tf.name_scope('CGIters'):
-    #         Ap = Encoder.EhE_Op(p, mu)
-    #         alpha = tf.complex(rsold / tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(p) * Ap)), 0.)
-    #         x = x + alpha * p
-    #         r = r - alpha * Ap
-    #         rsnew = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r))
-    #         beta = rsnew / rsold
-    #         beta = tf.complex(beta, 0.)
-    #         p = r + beta * p
-
-    #     return i + 1, rsnew, x, r, p, mu
-
-    x = tf.zeros_like(rhs)
-    # i, r, p = 0, rhs, rhs
-    r, p = rhs, rhs
-    rsold = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r), )
-    # loop_vars = i, rsold, x, r, p, mu_param
-
-    # class LoopLayer:
-    #     def __call__(self, input_elems):
-            
-    #         return tf.while_loop(cond, body, input_elems, name='CGloop', parallel_iterations=1)[2]
-
-    # cg_out = LoopLayer()(loop_vars)
-    with tf.name_scope('CGIters'):
-        for i in range(args.CG_Iter):
-            Ap = Encoder.EhE_Op(p, mu_param)
-            alpha = tf.complex(rsold / tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(p) * Ap)), 0.)
+    def body(i, rsold, x, r, p, mu):
+        with tf.name_scope('CGIters'):
+            Ap = Encoder.EhE_Op(p, mu)
+            alpha = tf.complex(rsold / tf.cast(tf.reduce_sum(tf.math.conj(p) * Ap), dtype=tf.float32), 0.)
             x = x + alpha * p
             r = r - alpha * Ap
-            rsnew = tf.compat.v1.to_float(tf.reduce_sum(tf.math.conj(r) * r))
+            rsnew = tf.cast(tf.reduce_sum(tf.math.conj(r) * r), dtype=tf.float32)
             beta = rsnew / rsold
             beta = tf.complex(beta, 0.)
             p = r + beta * p
 
-    
-    cg_out_real = tf_utils.tf_complex2real(x)
+        return i + 1, rsnew, x, r, p, mu
+
+    x = tf.zeros_like(rhs)
+    i, r, p = 0, rhs, rhs
+    rsold = tf.cast(tf.reduce_sum(tf.math.conj(r) * r), dtype=tf.float32)
+    loop_vars = i, rsold, x, r, p, mu_param
+    cg_out = tf.while_loop(cond, body, loop_vars, name='CGloop', parallel_iterations=1)[2]
+
+# %% CG Option 2
+
+    # x = tf.zeros_like(rhs)
+    # r, p = rhs, rhs
+    # rsold = tf.cast(tf.reduce_sum(tf.math.conj(r) * r), dtype=tf.float32)
+
+    # with tf.name_scope('CGIters'):
+    #     for i in range(args.CG_Iter):
+    #         Ap = Encoder.EhE_Op(p, mu_param)
+    #         alpha = tf.complex(rsold / tf.cast(tf.reduce_sum(tf.math.conj(p) * Ap), dtype=tf.float32), 0.)
+    #         x = x + alpha * p
+    #         r = r - alpha * Ap
+    #         rsnew = tf.cast(tf.reduce_sum(tf.math.conj(r) * r), dtype=tf.float32)
+    #         beta = rsnew / rsold
+    #         beta = tf.complex(beta, 0.)
+    #         p = r + beta * p
+
+    #         rsold = rsnew
+    # cg_out = x
+# %% CG return
+    cg_out_real = tf_utils.tf_complex2real(cg_out)
 
     return cg_out_real
 
 class dc_layer(tf.keras.layers.Layer):
-    def __init__(self, sens_maps, mask, mu):
+    def __init__(self):
         super().__init__()
-        self.sens_maps = sens_maps
-        self.mask = mask
-        self.mu = mu
-    def call(self, input):
-        cg_out_real = conj_grad([input, self.sens_maps, self.mask, self.mu])
-        print(cg_out_real)
+        # self.sens_maps = sens_maps
+        # self.mask = mask
+        # self.mu = mu
+    def call(self, input_elements):
+
+        sens_maps, mask, mu, input_image = input_elements
+
+
+        cg_out_real = conj_grad([input_image, sens_maps, mask, mu])
+        
         return cg_out_real
     
 def dc_block(rhs, sens_maps, mask, mu):
@@ -161,6 +167,7 @@ def SSDU_kspace_transform(nw_output, sens_maps, mask):
     def ssdu_map_fn(input_elems):
         nw_output_enc, sens_maps_enc, mask_enc = input_elems
         Encoder = data_consistency(sens_maps_enc, mask_enc)
+        
         nw_output_kspace = Encoder.SSDU_kspace(nw_output_enc)
 
         return nw_output_kspace

@@ -67,11 +67,11 @@ def step_gen(data_list,original_mask,ssdu_masker,shuffle=True):
         trn_mask = tf.expand_dims(trn_mask, axis = 0)
         loss_mask = tf.expand_dims(loss_mask, axis = 0)
         
-        print('ref_kspace shape' + str(ref_kspace.shape))
-        print('nw_input shape' + str(nw_input.shape))
-        print('SE shape' + str(SE.shape))
-        print('trn_mask shape' + str(trn_mask.shape))
-        print('loss_mask shape' + str(loss_mask.shape)) 
+        # print('ref_kspace shape' + str(ref_kspace.shape))
+        # print('nw_input shape' + str(nw_input.shape))
+        # print('SE shape' + str(SE.shape))
+        # print('trn_mask shape' + str(trn_mask.shape))
+        # print('loss_mask shape' + str(loss_mask.shape)) 
 
 
         multiple_inputs = (nw_input, SE, trn_mask, loss_mask)

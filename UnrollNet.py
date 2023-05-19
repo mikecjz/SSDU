@@ -50,27 +50,26 @@ class UnrolledNet():
         all_intermediate_results = [[0 for _ in range(2)] for _ in range(args.nb_unroll_blocks)]
 
         mu = tf.Variable(0., dtype=tf.float32)
-        print(x)
-        x0 = ssdu_dc.dc_layer(self.sens_maps, self.trn_mask, mu)(x)
+        x0 = ssdu_dc.dc_layer()([self.sens_maps, self.trn_mask, mu, x])
     
-        # with tf.name_scope('SSDUModel'):
-        for i in range(args.nb_unroll_blocks):
-            x = networks.ResNet(x, args.nb_res_blocks)
-            denoiser_output = x
+        with tf.name_scope('SSDUModel'):
+            for i in range(args.nb_unroll_blocks):
+                x = networks.ResNet(x, args.nb_res_blocks)
+                denoiser_output = x
 
-            rhs = self.input_x + mu * x
+                rhs = self.input_x + mu * x
 
-            x = ssdu_dc.dc_layer(self.sens_maps, self.trn_mask, mu)(x)
-            dc_output = x
-            # ...................................................................................................
-            all_intermediate_results[i][0] = tf_utils.tf_real2complex(tf.squeeze(denoiser_output))
-            all_intermediate_results[i][1] = tf_utils.tf_real2complex(tf.squeeze(dc_output))
+                x = ssdu_dc.dc_layer()([self.sens_maps, self.trn_mask, mu, rhs])
+                dc_output = x
+                # ...................................................................................................
+                all_intermediate_results[i][0] = tf_utils.tf_real2complex(tf.squeeze(denoiser_output))
+                all_intermediate_results[i][1] = tf_utils.tf_real2complex(tf.squeeze(dc_output))
 
         nw_kspace_output = ssdu_dc.SSDU_kspace_transform(x, self.sens_maps, self.loss_mask)
-
+        print('Model output shape' + str(nw_kspace_output.shape))
         # model = Model(inputs=[self.input_x, self.sens_maps, self.trn_mask, self.loss_mask], 
         #                outputs={'image_output': x, 'kspace_output': nw_kspace_output, 'first_sense_image': x0, 'intermediate_results': all_intermediate_results}) 
         model = Model(inputs=[self.input_x, self.sens_maps, self.trn_mask, self.loss_mask], 
-                      outputs=nw_kspace_output)    
+                      outputs=[dc_output, nw_kspace_output, x0])    
 
         return model

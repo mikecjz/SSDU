@@ -11,16 +11,18 @@ import tf_utils
 import parser_ops
 import masks.ssdu_masks as ssdu_masks
 import UnrollNet
+import matplotlib.pyplot as plt
+
+
 
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 #..............................................................................
 start_time = time.time()
-
 
 # .......................Load the Data..........................................
 print('\n Loading ', args.data_opt, ' data, acc rate : ', args.acc_rate, ', mask type :', args.mask_type)
@@ -55,25 +57,50 @@ val_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_val_list
                                                            tf.complex64, tf.complex64), tf.float32 ))
 val_dataset = val_dataset.prefetch(buffer_size=tf.data.AUTOTUNE) #pre_fetch for performance
 
+
+test_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_val_list[16:17], original_mask, ssdu_masker,shuffle=False),
+                                         output_types=((tf.float32, tf.complex64,
+                                                           tf.complex64, tf.complex64), tf.float32 ))
 # %% make training model
 ssdu_net= UnrollNet.UnrolledNet((args.nrow_GLOB, args.ncol_GLOB))
 ssdu_model = ssdu_net.model
 
-for element in train_dataset.take(1):
-    output = ssdu_model(element[0], training = False)
-    print(output)
+for element in test_dataset.take(1):
 
+    fig1 = plt.figure()
+    nw_input = utils.real2complex(element[0][0]).numpy()
+    nw_input = np.abs(np.squeeze(nw_input))
+    plt.imshow(nw_input, cmap='gray')
+    plt.colorbar()
+    fig1.savefig('nw_input.png')
+
+    output = ssdu_model(element[0], training = False)
+    output = output[0]
+    fig2 = plt.figure()
+    output = utils.real2complex(output).numpy()
+    output = np.abs(np.squeeze(output))
+    plt.imshow(output, cmap='gray')
+    plt.colorbar()
+    fig2.savefig('nw_dc_output.png')
+
+    fig3 = plt.figure()
+    plt.imshow(np.abs(output-nw_input), cmap='gray')
+    plt.colorbar()
+    fig3.savefig('difference.png')
 ssdu_model_output_names = ssdu_model.output_names
 print(ssdu_model_output_names)
 # %% Setup trainning paramers
+print('Setup trainning paramers')
 custom_loss_mae_mse = utils.MAE_MSE_LOSS(lam=0.5)
 mse_loss = tf.keras.losses.MeanSquaredError()
 dummy_loss = utils.dummy_loss
 opt = tf.keras.optimizers.Adam(learning_rate=args.learning_rate)
 
-ssdu_model.compile(optimizer=opt, loss=mse_loss,
-                           metrics=[tf.keras.metrics.MeanAbsoluteError()])
+print('Compiling Model')
+ssdu_model.compile(optimizer=opt, loss=[dummy_loss, custom_loss_mae_mse, dummy_loss])
 # %% Setup logging and callbacks
+print('Setup logging and callbacks')
+
 logdir = os.path.join("logs/Unrolled/", datetime.now().strftime("%Y%m%d-%H%M%S"))
 file_writer = tf.summary.create_file_writer(logdir + "/metrics")
 file_writer.set_as_default()
@@ -82,15 +109,16 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1,
                                                         update_freq='batch')
 
 checkpoint_filepath = "/home/jc_350/DL/Checkpoints/ssdu_best.h5"
-model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_filepath,
-    save_weights_only=True,
-    monitor='custom_loss_mae_mse',
-    verbose=1,
-    mode='min',
-    save_best_only=True)
+# model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+#     filepath=checkpoint_filepath,
+#     save_weights_only=True,
+#     monitor='custom_loss_mae_mse',
+#     verbose=1,
+#     mode='min',
+#     save_best_only=True)
 
 # %% Train Model
+print('Training Model')
 history = ssdu_model.fit(train_dataset, epochs=100, steps_per_epoch=96,
                                  validation_data=val_dataset,validation_steps=80,
                                  callbacks=[tensorboard_callback])
