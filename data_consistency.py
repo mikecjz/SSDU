@@ -1,6 +1,7 @@
 from typing import Any
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, Lambda, Add, Activation
+from tensorflow.signal import fft2d, ifft2d, fftshift, ifftshift
 
 import tf_utils
 import parser_ops
@@ -31,9 +32,9 @@ class data_consistency():
         """
         with tf.name_scope('EhE'):
             coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.signal.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            kspace = fftshift(fft2d(ifftshift(coil_imgs,axes=(-1,-2))), axes=(-1,-2)) / self.scalar
             masked_kspace = kspace * self.mask
-            image_space_coil_imgs = tf_utils.tf_ifftshift(tf.signal.ifft2d(tf_utils.tf_fftshift(masked_kspace))) * self.scalar
+            image_space_coil_imgs = ifftshift(ifft2d(fftshift(masked_kspace,axes=(-1,-2))), axes=(-1,-2)) * self.scalar
             image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=-3)
 
             ispace = image_space_comb + mu * img

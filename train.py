@@ -7,11 +7,13 @@ import os
 import h5py as h5
 import utils
 from preprocess import loadmat_cart, step_gen, get_enum_list
+import data_consistency as ssdu_dc
 import tf_utils
 import parser_ops
 import masks.ssdu_masks as ssdu_masks
 import UnrollNet
 import matplotlib.pyplot as plt
+from  display_output import display_output
 
 
 
@@ -19,7 +21,7 @@ parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
+working_dir = os.environ["HOME"] + '/DL/SSDU'
 
 #..............................................................................
 start_time = time.time()
@@ -65,28 +67,10 @@ test_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_val_lis
 ssdu_net= UnrollNet.UnrolledNet((args.nrow_GLOB, args.ncol_GLOB))
 ssdu_model = ssdu_net.model
 
-for element in test_dataset.take(1):
+# %% For network debugging
+image_save_folder = working_dir + '/debug_images'
+display_output(ssdu_model, test_dataset, image_save_folder)
 
-    fig1 = plt.figure()
-    nw_input = utils.real2complex(element[0][0]).numpy()
-    nw_input = np.abs(np.squeeze(nw_input))
-    plt.imshow(nw_input, cmap='gray')
-    plt.colorbar()
-    fig1.savefig('nw_input.png')
-
-    output = ssdu_model(element[0], training = False)
-    output = output[0]
-    fig2 = plt.figure()
-    output = utils.real2complex(output).numpy()
-    output = np.abs(np.squeeze(output))
-    plt.imshow(output, cmap='gray')
-    plt.colorbar()
-    fig2.savefig('nw_dc_output.png')
-
-    fig3 = plt.figure()
-    plt.imshow(np.abs(output-nw_input), cmap='gray')
-    plt.colorbar()
-    fig3.savefig('difference.png')
 ssdu_model_output_names = ssdu_model.output_names
 print(ssdu_model_output_names)
 # %% Setup trainning paramers

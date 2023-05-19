@@ -2,3 +2,5 @@
 *__pycache__*
 saved_models/
 logs/
+*.png
+debug_images/

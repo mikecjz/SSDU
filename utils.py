@@ -266,9 +266,7 @@ def real2complex(input_data):
     output : row x col
 
     """
-    input_data_real = tf.complex(input_data[..., 0], input_data[..., 1])
-    # return input_data[..., 0] + 1j * input_data[..., 1]
-    return input_data_real
+    return input_data[..., 0] + 1j * input_data[..., 1]
 
 
 class MAE_MSE_LOSS(tf.keras.losses.Loss):
