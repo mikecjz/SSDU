@@ -4,3 +4,4 @@ saved_models/
 logs/
 *.png
 debug_images/
+*.h5
