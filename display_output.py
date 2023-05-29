@@ -4,15 +4,17 @@ import matplotlib.pyplot as plt
 import data_consistency as ssdu_dc
 import tf_utils
 import os
+import scipy.io
+
 
 
 def display_output(ssdu_model, test_dataset, image_save_folder):
     for element in test_dataset.take(1):
-        nw_input, sens_maps, trn_mask, _ = element[0]
+        nw_input, sens_maps, trn_mask, loss_mask = element[0]
 
         #display input image
         fig1 = plt.figure()
-        nw_input_complex = tf_utils.tf_real2complex(nw_input).numpy()
+        nw_input_complex = tf_utils.tf_real2complex(nw_input).numpy()[0,0,...]
         nw_input_complex = np.abs(np.squeeze(nw_input_complex))
         plt.imshow(nw_input_complex, cmap='gray')
         plt.colorbar()
@@ -22,7 +24,7 @@ def display_output(ssdu_model, test_dataset, image_save_folder):
         output = ssdu_model(element[0], training = False)
         output = output[0]
         fig2 = plt.figure()
-        output = tf_utils.tf_real2complex(output).numpy()
+        output = tf_utils.tf_real2complex(output).numpy()[0, 0,...]
         output = np.abs(np.squeeze(output))
         plt.imshow(output, cmap='gray')
         plt.colorbar()
@@ -31,7 +33,7 @@ def display_output(ssdu_model, test_dataset, image_save_folder):
         #display single dc_layer output image    
         mu = tf.constant(0., dtype=tf.float32)
         dc_out = ssdu_dc.dc_layer()([sens_maps, trn_mask, mu, nw_input])
-        dc_out = tf_utils.tf_real2complex(dc_out).numpy()
+        dc_out = tf_utils.tf_real2complex(dc_out).numpy()[0, 0,...]
         fig3 = plt.figure()
         plt.imshow(np.abs(np.squeeze(dc_out)), cmap='gray')
         plt.colorbar()
@@ -42,10 +44,14 @@ def display_output(ssdu_model, test_dataset, image_save_folder):
         Encoder = ssdu_dc.data_consistency(sens_maps, trn_mask)
         EhEx = Encoder.EhE_Op(tf_utils.tf_real2complex(nw_input), mu)
 
-        EhEx_complex = EhEx.numpy()
+        EhEx_complex = EhEx.numpy()[0, 0,...]
         EhEx_abs = np.abs(np.squeeze(EhEx_complex))
 
         fig4 = plt.figure()
         plt.imshow(np.abs(np.squeeze(EhEx_abs)), cmap='gray')
         plt.colorbar()
         fig4.savefig(os.path.join(image_save_folder,'EhE_out.png'))
+
+        #save train and loss mask for tesing
+        mask_dict = {"trn_mask": np.squeeze(trn_mask.numpy()), "loss_mask":  np.squeeze(loss_mask.numpy())}
+        scipy.io.savemat(os.path.join(image_save_folder,'trn_loss_masks.mat'), mask_dict)

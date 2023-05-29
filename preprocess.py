@@ -56,11 +56,13 @@ def step_gen(data_list,original_mask,ssdu_masker,shuffle=True):
         nw_input = utils.sense1(sub_kspace, SE)
 
         # Prepare the data for the training
-        SE = np.transpose(SE, (2, 0, 1))
-        ref_kspace = utils.complex2real(np.transpose(ref_kspace, (2, 0, 1)))
+        SE = np.transpose(SE, (2, 3, 0, 1)) #(nCoil, nMaps, nRow, nCol)
+        ref_kspace = utils.complex2real(np.transpose(ref_kspace, (2, 0, 1))) #(nCoil, nRow, nCol)
+        nw_input = np.transpose(nw_input, (2, 0, 1)) #(nMaps, nRow, nCol)
+
         nw_input = utils.complex2real(nw_input)
 
-        #Expland first dimension to 1
+        #Expland first dimension to 1 for batch dimension
         ref_kspace = tf.expand_dims(ref_kspace, axis = 0)
         nw_input = tf.expand_dims(nw_input, axis = 0)
         SE = tf.expand_dims(SE, axis = 0)

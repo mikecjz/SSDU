@@ -31,11 +31,17 @@ class data_consistency():
         Performs (E^h*E+ mu*I) x
         """
         with tf.name_scope('EhE'):
-            coil_imgs = self.sens_maps * img
-            kspace = fftshift(fft2d(ifftshift(coil_imgs,axes=(-1,-2))), axes=(-1,-2)) / self.scalar
+            #sense_maps: (1, nCoils, nMaps, nRow, nCol)
+            #image:      (1, nMaps, nRow, nCol)
+            coil_imgs = self.sens_maps * img #shape (1, nCoils, nMaps, nRow, nCol)
+            kspace = fftshift(fft2d(ifftshift(coil_imgs,axes=(-1,-2))), axes=(-1,-2)) #/ self.scalar #shape (1, nCoils, nMaps, nRow, nCol)
+            kspace = tf.reduce_sum(kspace, axis = -3) #shape (1, nCoils, nRow, nCol)
+
             masked_kspace = kspace * self.mask
-            image_space_coil_imgs = ifftshift(ifft2d(fftshift(masked_kspace,axes=(-1,-2))), axes=(-1,-2)) * self.scalar
-            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=-3)
+
+            image_space_coil_imgs = ifftshift(ifft2d(fftshift(masked_kspace,axes=(-1,-2))), axes=(-1,-2)) #* self.scalar #shape (1, nCoils, nRow, nCol)
+            image_space_coil_imgs = tf.expand_dims(image_space_coil_imgs, axis = 2) #shape (1, nCoils, 1, nRow, nCol)
+            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=-4) #shape (1, nMaps, nRow, nCol)
 
             ispace = image_space_comb + mu * img
 
@@ -48,8 +54,11 @@ class data_consistency():
         """
 
         with tf.name_scope('SSDU_kspace'):
-            coil_imgs = self.sens_maps * img
-            kspace = tf_utils.tf_fftshift(tf.signal.fft2d(tf_utils.tf_ifftshift(coil_imgs))) / self.scalar
+            #sense_maps: (1, nCoils, nMaps, nRow, nCol)
+            #image:      (1, nMaps, nRow, nCol)
+            coil_imgs = self.sens_maps * img #shape (1, nCoils, nMaps, nRow, nCol)
+            kspace = fftshift(fft2d(ifftshift(coil_imgs, axes=(-1,-2))), axes=(-1,-2)) #/ self.scalar #shape (1, nCoils, nMaps, nRow, nCol)
+            kspace = tf.reduce_sum(kspace, axis = -3) #shape (1, nCoils, nRow, nCol)
             masked_kspace = kspace * self.mask
 
         return masked_kspace

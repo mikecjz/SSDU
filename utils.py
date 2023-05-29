@@ -129,7 +129,7 @@ def fft(ispace, axes=(0, 1), norm=None, unitary_opt=True):
     return kspace
 
 
-def ifft(kspace, axes=(0, 1), norm=None, unitary_opt=True):
+def ifft(kspace, axes=(0, 1), norm=None, unitary_opt=False):
     """
     Parameters
     ----------
@@ -232,7 +232,8 @@ def sense1(input_kspace, sens_maps, axes=(0, 1)):
 
     """
 
-    image_space = ifft(input_kspace, axes=axes, norm=None, unitary_opt=True)
+    image_space = ifft(input_kspace, axes=axes, norm=None, unitary_opt=False)
+    image_space = np.expand_dims(image_space, axis = -1) #assume two maps
     Eh_op = np.conj(sens_maps) * image_space
     sense1_image = np.sum(Eh_op, axis=axes[-1] + 1)
 

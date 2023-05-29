@@ -39,8 +39,8 @@ class UnrolledNet():
     """
 
     def __init__(self, input_size):
-        self.input_x = Input(input_size+(2,), dtype=tf.float32, name='nw_input')
-        self.sens_maps = Input((None,) + input_size, dtype=tf.complex64, name='sens_maps')
+        self.input_x = Input((2,) + input_size + (2,), dtype=tf.float32, name='nw_input')
+        self.sens_maps = Input((None, 2) + input_size, dtype=tf.complex64, name='sens_maps')
         self.trn_mask = Input(input_size, dtype=tf.complex64, name='train_mask')
         self.loss_mask = Input(input_size, dtype=tf.complex64, name='loss_mask')
         self.model = self.Unrolled_SSDU()

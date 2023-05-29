@@ -1,11 +1,13 @@
 import tensorflow as tf
 import numpy as np
 import sys
-
+import parser_ops
 from tensorflow.keras.layers import Conv2D, Lambda, Add, Activation
 
+parser = parser_ops.get_parser()
+args = parser.parse_args("")
 
-def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False):
+def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False, is_first_layer=False):
     """
     Parameters
     ----------
@@ -25,7 +27,11 @@ def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False):
         activation_type = None
 
     #perform convolution
-    x = Conv2D(n_filters, kernel, padding='same', activation=activation_type)(input_data)
+    if is_first_layer:
+        nw_input_shape = (args.nrow_GLOB, args.ncol_GLOB, 2)
+        x = Conv2D(n_filters, kernel, padding='same', activation=activation_type, input_shape=nw_input_shape)(input_data)
+    else:
+        x = Conv2D(n_filters, kernel, padding='same', activation=activation_type)(input_data)
 
 
     #optional scaling
@@ -59,7 +65,7 @@ def ResNet(input_data, nb_res_blocks):
     #with tf.compat.v1.variable_scope('FirstLayer'):
 
     
-    intermediate_outputs['layer0'] = conv_layer(input_data, conv_filters['w1'], is_relu=False, is_scaling=False)
+    intermediate_outputs['layer0'] = conv_layer(input_data, conv_filters['w1'], is_relu=False, is_scaling=False, is_first_layer=True)
 
     for i in np.arange(1, nb_res_blocks + 1):
         #with tf.compat.v1.variable_scope('ResBlock' + str(i)):
