@@ -20,7 +20,7 @@ from  display_output import display_output
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 working_dir = os.environ["HOME"] + '/DL/SSDU'
 
 #..............................................................................
