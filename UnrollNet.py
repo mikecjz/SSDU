@@ -49,17 +49,17 @@ class UnrolledNet():
         x = self.input_x
         all_intermediate_results = [[0 for _ in range(2)] for _ in range(args.nb_unroll_blocks)]
 
-        mu = tf.Variable(0., dtype=tf.float32)
-        x0 = ssdu_dc.dc_layer()([self.sens_maps, self.trn_mask, mu, x])
+        
+        x0 = ssdu_dc.dc_layer()([self.sens_maps, self.trn_mask, x, tf.zeros_like(x)])
     
         with tf.name_scope('SSDUModel'):
             for i in range(args.nb_unroll_blocks):
-                x = networks.ResNet(x, args.nb_res_blocks)
-                denoiser_output = x
+                z = networks.ResNet(x, args.nb_res_blocks) #MoDL naming convention
+                denoiser_output = z
 
-                rhs = self.input_x + mu * x
+                #rhs = self.input_x + mu * x
 
-                x = ssdu_dc.dc_layer()([self.sens_maps, self.trn_mask, mu, rhs])
+                x = ssdu_dc.dc_layer()([self.sens_maps, self.trn_mask, self.input_x, z])
                 dc_output = x
                 # ...................................................................................................
                 all_intermediate_results[i][0] = tf_utils.tf_real2complex(tf.squeeze(denoiser_output))

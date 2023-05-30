@@ -20,7 +20,7 @@ from  display_output import display_output
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 working_dir = os.environ["HOME"] + '/DL/SSDU'
 
 #..............................................................................
@@ -103,7 +103,7 @@ checkpoint_filepath = "/home/jc_350/DL/Checkpoints/ssdu_best.h5"
 
 # %% Train Model
 print('Training Model')
-history = ssdu_model.fit(train_dataset, epochs=100, steps_per_epoch=96,
+history = ssdu_model.fit(train_dataset, epochs=40, steps_per_epoch=96,
                                  validation_data=val_dataset,validation_steps=80,
                                  callbacks=[tensorboard_callback])
 

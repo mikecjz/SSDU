@@ -7,8 +7,14 @@ import os
 import scipy.io
 
 
-
 def display_output(ssdu_model, test_dataset, image_save_folder):
+
+    def myprint(s):
+        with open(os.path.join(image_save_folder, 'modelsummary.txt'),'a') as f:
+            print(s, file=f)
+    
+    os.remove(os.path.join(image_save_folder, 'modelsummary.txt'))
+    ssdu_model.summary(print_fn=myprint)
     for element in test_dataset.take(1):
         nw_input, sens_maps, trn_mask, loss_mask = element[0]
 
@@ -31,8 +37,7 @@ def display_output(ssdu_model, test_dataset, image_save_folder):
         fig2.savefig(os.path.join(image_save_folder,'raw_nw_output.png'))
 
         #display single dc_layer output image    
-        mu = tf.constant(0., dtype=tf.float32)
-        dc_out = ssdu_dc.dc_layer()([sens_maps, trn_mask, mu, nw_input])
+        dc_out = ssdu_dc.dc_layer()([sens_maps, trn_mask, nw_input, tf.zeros_like(nw_input)])
         dc_out = tf_utils.tf_real2complex(dc_out).numpy()[0, 0,...]
         fig3 = plt.figure()
         plt.imshow(np.abs(np.squeeze(dc_out)), cmap='gray')

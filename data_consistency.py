@@ -148,13 +148,20 @@ class dc_layer(tf.keras.layers.Layer):
         super().__init__()
         # self.sens_maps = sens_maps
         # self.mask = mask
-        # self.mu = mu
+        self.mu = self.add_weight(
+            name="mu",
+            shape=(1,),
+            initializer='zeros',
+            trainable=True
+        )
     def call(self, input_elements):
 
-        sens_maps, mask, mu, input_image = input_elements
+        sens_maps, mask, nw_input_image, z = input_elements
+        mu = self.mu
 
+        rhs = nw_input_image + mu * z
 
-        cg_out_real = conj_grad([input_image, sens_maps, mask, mu])
+        cg_out_real = conj_grad([rhs, sens_maps, mask, mu])
         
         return cg_out_real
     
