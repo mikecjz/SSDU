@@ -76,7 +76,7 @@ ssdu_net= UnrollNet.UnrolledNet((args.nrow_GLOB, args.ncol_GLOB))
 ssdu_model = ssdu_net.model
 
 # %% For network debugging
-image_save_folder = working_dir + '/debug_images'
+image_save_folder = os.path.join(working_dir, 'debug_outpts')
 display_output(ssdu_model, test_dataset, image_save_folder)
 
 ssdu_model_output_names = ssdu_model.output_names
