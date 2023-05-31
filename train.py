@@ -13,23 +13,31 @@ import parser_ops
 import masks.ssdu_masks as ssdu_masks
 import UnrollNet
 import matplotlib.pyplot as plt
-from  display_output import display_output
-
+from  generate_output import display_output
 
 
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-working_dir = os.environ["HOME"] + '/DL/SSDU'
+
+HOMEDIR = os.environ.get("HOME")
+SYSTYPE = os.environ.get("SYSTYPE")
+working_dir = os.path.join(HOMEDIR, 'DL/SSDU')
+
+
+if SYSTYPE == "DISCOVERY":
+    zfan0804_712_dir = '/project/zfan0804_712'
+else:
+    zfan0804_712_dir = os.path.join(HOMEDIR, 'zfan0804_712')
 
 #..............................................................................
 start_time = time.time()
 
 # .......................Load the Data..........................................
 print('\n Loading ', args.data_opt, ' data, acc rate : ', args.acc_rate, ', mask type :', args.mask_type)
-mask_dir = '/home/jc_350/zfan0804_712/Zhehao/Accelerated-VWI-Mask/mask_2x3_grappa.mat'
-csv_dir = '/home/jc_350/DL/SSDU/dcm_tags_09_19_22.csv'
+mask_dir = os.path.join(zfan0804_712_dir, 'Zhehao/Accelerated-VWI-Mask/mask_2x3_grappa.mat')
+csv_dir = os.path.join(working_dir, 'dcm_tags_09_19_22.csv')
 
 # %% kspace and sensitivity maps are assumed to be in .h5 format and mask is assumed to be in .mat
 # Users can change these formats based on their dataset

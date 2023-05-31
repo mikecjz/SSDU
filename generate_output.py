@@ -60,3 +60,22 @@ def display_output(ssdu_model, test_dataset, image_save_folder):
         #save train and loss mask for tesing
         mask_dict = {"trn_mask": np.squeeze(trn_mask.numpy()), "loss_mask":  np.squeeze(loss_mask.numpy())}
         scipy.io.savemat(os.path.join(image_save_folder,'trn_loss_masks.mat'), mask_dict)
+
+def SSDU_inference(ssdu_model, inference_dataset, patient_folder, num_slices=350, inference_folder='DL_inference/SSDU'):
+    DL_inference_folder = os.path.join(patient_folder, inference_folder)
+    os.makedirs(DL_inference_folder, exist_ok=True)
+
+    iSlice = 1
+    for element in inference_dataset.take(num_slices):
+        print('Performing Inference for Slice ', str(iSlice), '. Patient folder:  ', patient_folder)
+        #get network output image    
+        output = ssdu_model(element[0], training = False)
+        output = output[0]
+        output = tf_utils.tf_real2complex(output).numpy()[0, ...] #shape (1, nMaps, nRow, nCol)
+        output = np.squeeze(output) #shape (nMaps, nRow, nCol)
+        output = np.transpose(output, (1, 2, 0)) #shape (nMaps, nRow, nCol)
+
+        save_dict = {"SC_12_SSDU": output}
+        scipy.io.savemat(os.path.join(DL_inference_folder,'Slice_' + str(iSlice) + '.mat'), save_dict)
+        iSlice = iSlice+1
+            

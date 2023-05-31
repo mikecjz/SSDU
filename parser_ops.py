@@ -1,8 +1,14 @@
 import argparse
+import os
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description='SSDU: Self-Supervision via Data Undersampling ')
+
+    SSDU_RUN_TYPE = os.environ.get("SSDU_RUN_TYPE")
+    if SSDU_RUN_TYPE == "INFERENCE":
+        parser.add_argument('Inference_FID', type=str, 
+                            help=' FID of the volunteer to go through network inference')
 
     # %% hyperparameters for the unrolled network
     parser.add_argument('--acc_rate', type=int, default=4,

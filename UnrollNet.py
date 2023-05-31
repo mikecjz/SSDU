@@ -8,7 +8,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras import Input
 
 parser = parser_ops.get_parser()
-args = parser.parse_args("")
+args = parser.parse_args()
 
 
 class UnrolledNet():

@@ -5,7 +5,7 @@ import parser_ops
 from tensorflow.keras.layers import Conv2D, Lambda, Add, Activation
 
 parser = parser_ops.get_parser()
-args = parser.parse_args("")
+args = parser.parse_args()
 
 def conv_layer(input_data, conv_filter, is_relu=False, is_scaling=False, is_first_layer=False):
     """
