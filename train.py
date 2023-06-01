@@ -19,7 +19,7 @@ from  generate_output import display_output
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 HOMEDIR = os.environ.get("HOME")
 SYSTYPE = os.environ.get("SYSTYPE")
@@ -36,12 +36,24 @@ start_time = time.time()
 
 # .......................Load the Data..........................................
 print('\n Loading ', args.data_opt, ' data, acc rate : ', args.acc_rate, ', mask type :', args.mask_type)
-mask_dir = os.path.join(zfan0804_712_dir, 'Zhehao/Accelerated-VWI-Mask/mask_2x3_grappa.mat')
+mask_2x3_dir = os.path.join(zfan0804_712_dir, 'Zhehao/Accelerated-VWI-Mask/mask_2x3_grappa.mat')
+mask_2x1_dir = os.path.join(zfan0804_712_dir, 'Zhehao/Accelerated-VWI-Mask/mask_2x1_grappa.mat')
 csv_dir = os.path.join(working_dir, 'dcm_tags_09_19_22.csv')
 
-# %% kspace and sensitivity maps are assumed to be in .h5 format and mask is assumed to be in .mat
-# Users can change these formats based on their dataset
-original_mask = sio.loadmat(mask_dir)['mask']
+# %% set up masks
+mask2x3 = sio.loadmat(mask_2x3_dir)['mask']
+mask2x1 = sio.loadmat(mask_2x1_dir)['mask']
+
+# %% setup train mode. SSDU or FANSS
+if args.train_mode == "SSDU":
+    original_mask = mask2x3
+    mask_train = None
+    weights_h5_name = 'ssdu_original.h5'
+elif args.train_mode == "FANSS":
+    original_mask = mask2x1
+    mask_train = mask2x3
+    weights_h5_name = 'ssdu_fanss.h5'
+
 
 print('Getting list of trainning files')
 enumerate_trn_list = get_enum_list(csv_dir, tag='Train')
@@ -55,28 +67,30 @@ print('Getting list of validation files done')
 ssdu_masker = ssdu_masks.ssdu_masks()
 
 # Setup trainning dataset 
-train_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_trn_list, original_mask, ssdu_masker,shuffle=True),
+train_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_trn_list, original_mask, ssdu_masker, shuffle=True, mask_train=mask_train),
                                          output_types=((tf.float32, tf.complex64,
                                                            tf.complex64, tf.complex64), tf.float32 ))
 train_dataset = train_dataset.repeat()
 train_dataset = train_dataset.prefetch(buffer_size=tf.data.AUTOTUNE) #pre_fetch for performance
 
 # Setup validation dataset 
-val_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_val_list, original_mask, ssdu_masker,shuffle=True),
+val_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_val_list, original_mask, ssdu_masker, shuffle=True, mask_train=mask_train),
                                              output_types=((tf.float32, tf.complex64,
                                                            tf.complex64, tf.complex64), tf.float32 ))
 val_dataset = val_dataset.prefetch(buffer_size=tf.data.AUTOTUNE) #pre_fetch for performance
 
 
-test_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_val_list[16:17], original_mask, ssdu_masker,shuffle=False),
+enumerate_test_list = [('/home/jc_350/zfan0804_712/Zhehao/Accelerated-VWI/Patient-017-CE/DL_data/Slice_138.mat', 1)]
+test_dataset = tf.data.Dataset.from_generator(lambda: step_gen(enumerate_test_list, original_mask, ssdu_masker,shuffle=False),
                                          output_types=((tf.float32, tf.complex64,
                                                            tf.complex64, tf.complex64), tf.float32 ))
+
 # %% make training model
 ssdu_net= UnrollNet.UnrolledNet((args.nrow_GLOB, args.ncol_GLOB))
 ssdu_model = ssdu_net.model
 
 # %% For network debugging
-image_save_folder = os.path.join(working_dir, 'debug_outpts')
+image_save_folder = os.path.join(working_dir, 'debug_outputs')
 display_output(ssdu_model, test_dataset, image_save_folder)
 
 ssdu_model_output_names = ssdu_model.output_names
@@ -111,8 +125,8 @@ checkpoint_filepath = "/home/jc_350/DL/Checkpoints/ssdu_best.h5"
 
 # %% Train Model
 print('Training Model')
-history = ssdu_model.fit(train_dataset, epochs=40, steps_per_epoch=96,
-                                 validation_data=val_dataset,validation_steps=80,
+ihistory = ssdu_model.fit(train_dataset, epochs=100, steps_per_epoch=96,
+                                 validation_data=val_dataset,validation_steps=40,
                                  callbacks=[tensorboard_callback])
 
-ssdu_model.save_weights('ssdu_original.h5')
+ssdu_model.save_weights(weights_h5_name)

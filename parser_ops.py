@@ -5,13 +5,14 @@ import os
 def get_parser():
     parser = argparse.ArgumentParser(description='SSDU: Self-Supervision via Data Undersampling ')
 
+    # %%parameters used for inference
     SSDU_RUN_TYPE = os.environ.get("SSDU_RUN_TYPE")
     if SSDU_RUN_TYPE == "INFERENCE":
         parser.add_argument('Inference_FID', type=str, 
                             help=' FID of the volunteer to go through network inference')
 
     # %% hyperparameters for the unrolled network
-    parser.add_argument('--acc_rate', type=int, default=4,
+    parser.add_argument('--acc_rate', type=float, default=6.5,
                         help='acceleration rate')
     parser.add_argument('--epochs', type=int, default=100,
                         help='number of epochs to train')
@@ -23,7 +24,7 @@ def get_parser():
                         help='number of unrolled blocks')
     parser.add_argument('--nb_res_blocks', type=int, default=15,
                         help="number of residual blocks in ResNet")
-    parser.add_argument('--CG_Iter', type=int, default=10,
+    parser.add_argument('--CG_Iter', type=int, default=20,
                         help='number of Conjugate Gradient iterations for DC')
 
     # %% hyperparameters for the dataset
@@ -41,5 +42,8 @@ def get_parser():
                         help='mask selection for training and loss masks', choices=['Gaussian', 'Uniform'])
     parser.add_argument('--rho', type=float, default=0.4,
                         help='cardinality of the loss mask, \ rho = |\ Lambda| / |\ Omega|')
+    parser.add_argument('--train_mode', type=str, default='SSDU',
+                        help='modes to choose from \n SSDU: original mode \n FANSS: Dr.Fan s version of self-supervised learning',
+                        choices=['SSDU', 'FANSS'])
 
     return parser

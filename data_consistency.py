@@ -31,17 +31,17 @@ class data_consistency():
         Performs (E^h*E+ mu*I) x
         """
         with tf.name_scope('EhE'):
-            #sense_maps: (1, nCoils, nMaps, nRow, nCol)
-            #image:      (1, nMaps, nRow, nCol)
-            coil_imgs = self.sens_maps * img #shape (1, nCoils, nMaps, nRow, nCol)
-            kspace = fftshift(fft2d(ifftshift(coil_imgs,axes=(-1,-2))), axes=(-1,-2)) #/ self.scalar #shape (1, nCoils, nMaps, nRow, nCol)
-            kspace = tf.reduce_sum(kspace, axis = -3) #shape (1, nCoils, nRow, nCol)
+            #sense_maps: (batch,  nCoils, nMaps, nRow, nCol)
+            #image:      (batch,  nMaps, nRow, nCol)
+            coil_imgs = self.sens_maps * img #shape (batch,  nCoils, nMaps, nRow, nCol)
+            kspace = fftshift(fft2d(ifftshift(coil_imgs,axes=(-1,-2))), axes=(-1,-2)) #/ self.scalar #shape (batch,  nCoils, nMaps, nRow, nCol)
+            kspace = tf.reduce_sum(kspace, axis = -3) #shape (batch,  nCoils, nRow, nCol)
 
             masked_kspace = kspace * self.mask
 
-            image_space_coil_imgs = ifftshift(ifft2d(fftshift(masked_kspace,axes=(-1,-2))), axes=(-1,-2)) #* self.scalar #shape (1, nCoils, nRow, nCol)
-            image_space_coil_imgs = tf.expand_dims(image_space_coil_imgs, axis = 2) #shape (1, nCoils, 1, nRow, nCol)
-            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=-4) #shape (1, nMaps, nRow, nCol)
+            image_space_coil_imgs = ifftshift(ifft2d(fftshift(masked_kspace,axes=(-1,-2))), axes=(-1,-2)) #* self.scalar #shape (batch,  nCoils, nRow, nCol)
+            image_space_coil_imgs = tf.expand_dims(image_space_coil_imgs, axis = 2) #shape (batch,  nCoils, 1, nRow, nCol)
+            image_space_comb = tf.reduce_sum(image_space_coil_imgs * tf.math.conj(self.sens_maps), axis=-4) #shape (batch,  nMaps, nRow, nCol)
 
             ispace = image_space_comb + mu * img
 
@@ -54,11 +54,11 @@ class data_consistency():
         """
 
         with tf.name_scope('SSDU_kspace'):
-            #sense_maps: (1, nCoils, nMaps, nRow, nCol)
-            #image:      (1, nMaps, nRow, nCol)
-            coil_imgs = self.sens_maps * img #shape (1, nCoils, nMaps, nRow, nCol)
-            kspace = fftshift(fft2d(ifftshift(coil_imgs, axes=(-1,-2))), axes=(-1,-2)) #/ self.scalar #shape (1, nCoils, nMaps, nRow, nCol)
-            kspace = tf.reduce_sum(kspace, axis = -3) #shape (1, nCoils, nRow, nCol)
+            #sense_maps: (batch,  nCoils, nMaps, nRow, nCol)
+            #image:      (batch,  nMaps, nRow, nCol)
+            coil_imgs = self.sens_maps * img #shape (batch,  nCoils, nMaps, nRow, nCol)
+            kspace = fftshift(fft2d(ifftshift(coil_imgs, axes=(-1,-2))), axes=(-1,-2)) #/ self.scalar #shape (batch,  nCoils, nMaps, nRow, nCol)
+            kspace = tf.reduce_sum(kspace, axis = -3) #shape (batch,  nCoils, nRow, nCol)
             masked_kspace = kspace * self.mask
 
         return masked_kspace
@@ -161,6 +161,7 @@ class dc_layer(tf.keras.layers.Layer):
 
         rhs = nw_input_image + mu * z
 
+        #sens_maps = sens_maps.to_tensor(name='ragged_to_tensor_CG') #For potential ragged tensor. Needs to be compatible with inference
         cg_out_real = conj_grad([rhs, sens_maps, mask, mu])
         
         return cg_out_real
@@ -190,6 +191,7 @@ def SSDU_kspace_transform(nw_output, sens_maps, mask):
         return nw_output_kspace
 
     #masked_kspace = tf.map_fn(ssdu_map_fn, (nw_output, sens_maps, mask), dtype=tf.complex64, name='ssdumapFn')
+    #sens_maps = sens_maps.to_tensor(name = 'ragged_to_tensor_SSDUKspace') #For potential ragged tensor. Needs to be compatible with inference
     masked_kspace  = tf.keras.layers.Lambda(lambda x: ssdu_map_fn(x))((nw_output, sens_maps, mask))
 
     return tf_utils.tf_complex2real(masked_kspace)

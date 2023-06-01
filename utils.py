@@ -281,13 +281,13 @@ class MAE_MSE_LOSS(tf.keras.losses.Loss):
 
     
     # print(y_true)
-    print('ref_tensor :')
-    print(ref_kspace_tensor)
-    print('nw_output_kspace:')
-    print(nw_output_kspace)
+    # print('ref_tensor :')
+    # print(ref_kspace_tensor)
+    # print('nw_output_kspace:')
+    # print(nw_output_kspace)
     loss = tf.multiply(scalar, tf.norm(ref_kspace_tensor - nw_output_kspace) / tf.norm(ref_kspace_tensor)) + \
        tf.multiply(scalar, tf.norm(ref_kspace_tensor - nw_output_kspace, ord=1) / tf.norm(ref_kspace_tensor, ord=1))
-    print('Loss success')
+    # print('Loss success')
     return loss
   
 def dummy_loss(y_true, y_pred):

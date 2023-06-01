@@ -47,34 +47,46 @@ def loadmat_cart(matpath):
     f = scipy.io.loadmat(matpath) 
     
     
-    MC_kspace = f['MC_kspace_slice'][()].view(np.complex64)
-    SE = f['SE'][()].view(np.complex64)
+    MC_kspace = f['MC_kspace_slice']
+    SE = f['SE']
+
+    MC_kspace = MC_kspace.astype(np.complex64)
+    SE = SE.astype(np.complex64)
     
 
     return MC_kspace, SE
             
-        
-def step_gen(data_list, original_mask, masker_object = None, shuffle = True, trn_mask = None, loss_mask = None):
+
+# keyword args mask_train and mask_loss are named specifically not to be the same as
+# the yielded trn_mask and loss_mask
+def step_gen(data_list, original_mask, masker_object = None, shuffle = True, *, 
+             mask_train = None, mask_loss = None):
     if shuffle:
         random.shuffle(data_list)
     for mat_path, count in data_list:
-        print('\nCase Nummmber =',count)
+        # print('\nCase Nummmber =',count)
+        print('\nMAT Path: ',mat_path)
         
         # MC_kspace should already be normalized between [0-1]
         MC_kspace, SE = loadmat_cart(mat_path)
         _, _, nCoil = np.shape(MC_kspace)
 
         # Use user supplied train mask
-        if  trn_mask != None:
-
+        if  mask_train != None:
+            # print(mat_path, 'trainning mask specified')
             # if no loss mask is supplied, loss mask is the complement set of train mask
-            if loss_mask == None:
-                loss_mask = original_mask - trn_mask
-        
+            if mask_loss == None:
+                mask_loss = original_mask - mask_train
+            trn_mask = mask_train
+            loss_mask = mask_loss
         # Calculate train and loss mask on the fly
         else:
+            # print(mat_path, 'making mask')
             trn_mask, loss_mask = masker_object.make_mask(MC_kspace, original_mask, mask_type='Gaussian')
 
+        # print(mat_path, 'loss mask shape: ',loss_mask.shape)
+        # print(mat_path, 'train mask shape: ', trn_mask.shape)
+        # print(mat_path, 'original mask shape: ', original_mask.shape)
         sub_kspace = MC_kspace * np.tile(trn_mask[..., np.newaxis], (1, 1, nCoil))
         ref_kspace = MC_kspace * np.tile(loss_mask[..., np.newaxis], (1, 1, nCoil))
 
@@ -82,6 +94,9 @@ def step_gen(data_list, original_mask, masker_object = None, shuffle = True, trn
 
         # Prepare the data for the training
         SE = np.transpose(SE, (2, 3, 0, 1)) #(nCoil, nMaps, nRow, nCol)
+        # print(mat_path, 'ref_kspace shape: ',ref_kspace.shape)
+        # print(mat_path, 'MC_kspace shape:',MC_kspace.shape)
+        
         ref_kspace = utils.complex2real(np.transpose(ref_kspace, (2, 0, 1))) #(nCoil, nRow, nCol)
         nw_input = np.transpose(nw_input, (2, 0, 1)) #(nMaps, nRow, nCol)
 
