@@ -19,7 +19,7 @@ from  generate_output import display_output
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 HOMEDIR = os.environ.get("HOME")
 SYSTYPE = os.environ.get("SYSTYPE")
@@ -128,5 +128,5 @@ print('Training Model')
 ihistory = ssdu_model.fit(train_dataset, epochs=100, steps_per_epoch=96,
                                  validation_data=val_dataset,validation_steps=40,
                                  callbacks=[tensorboard_callback])
-
-ssdu_model.save_weights(weights_h5_name)
+weights_h5_name = args.weights
+ssdu_model.save_weights(os.path.join(working_dir, weights_h5_name))

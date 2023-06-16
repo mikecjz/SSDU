@@ -21,7 +21,7 @@ from  generate_output import display_output, SSDU_inference
 parser = parser_ops.get_parser()
 args = parser.parse_args()
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 HOMEDIR = os.environ.get("HOME")
@@ -67,7 +67,8 @@ inference_dataset = tf.data.Dataset.from_generator(lambda: step_gen_inference(en
 # %% load trained model
 ssdu_net= UnrollNet.UnrolledNet((args.nrow_GLOB, args.ncol_GLOB))
 ssdu_model = ssdu_net.model
-ssdu_model.load_weights(os.path.join(working_dir, 'ssdu_original.h5'))
+weights_h5_name = args.weights
+ssdu_model.load_weights(os.path.join(working_dir, weights_h5_name))
 
 # %% Inference
 df = pd.read_csv(csv_dir)

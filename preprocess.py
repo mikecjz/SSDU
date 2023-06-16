@@ -72,11 +72,12 @@ def step_gen(data_list, original_mask, masker_object = None, shuffle = True, *,
         _, _, nCoil = np.shape(MC_kspace)
 
         # Use user supplied train mask
-        if  mask_train != None:
+        if  not (mask_train is None):
             # print(mat_path, 'trainning mask specified')
             # if no loss mask is supplied, loss mask is the complement set of train mask
-            if mask_loss == None:
+            if mask_loss is None:
                 mask_loss = original_mask - mask_train
+                
             trn_mask = mask_train
             loss_mask = mask_loss
         # Calculate train and loss mask on the fly

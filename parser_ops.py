@@ -45,5 +45,7 @@ def get_parser():
     parser.add_argument('--train_mode', type=str, default='SSDU',
                         help='modes to choose from \n SSDU: original mode \n FANSS: Dr.Fan s version of self-supervised learning',
                         choices=['SSDU', 'FANSS'])
+    parser.add_argument('--weights', type=str, default='ssdu_original.h5',
+                        help='weights name to save after trainning /or load during inference')
 
     return parser
