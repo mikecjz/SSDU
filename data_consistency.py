@@ -148,12 +148,14 @@ class dc_layer(tf.keras.layers.Layer):
         super().__init__()
         # self.sens_maps = sens_maps
         # self.mask = mask
-        self.mu = self.add_weight(
-            name="mu",
-            shape=(1,),
-            initializer='zeros',
-            trainable=True
-        )
+        # self.mu = self.add_weight(
+        #     name="mu",
+        #     shape=(1,),
+        #     initializer='zeros',
+        #     trainable=True
+        # )
+
+        self.mu = args.mu
     def call(self, input_elements):
 
         sens_maps, mask, nw_input_image, z = input_elements

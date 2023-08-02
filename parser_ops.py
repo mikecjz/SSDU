@@ -42,6 +42,8 @@ def get_parser():
                         help='mask selection for training and loss masks', choices=['Gaussian', 'Uniform'])
     parser.add_argument('--rho', type=float, default=0.4,
                         help='cardinality of the loss mask, \ rho = |\ Lambda| / |\ Omega|')
+    parser.add_argument('--mu', type=float, default=0.01,
+                        help='mu parameters for DC layer')
     parser.add_argument('--train_mode', type=str, default='SSDU',
                         help='modes to choose from \n SSDU: original mode \n FANSS: Dr.Fan s version of self-supervised learning',
                         choices=['SSDU', 'FANSS'])
